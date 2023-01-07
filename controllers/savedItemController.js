@@ -3,7 +3,6 @@ const Saved = require("../models/SavedItem");
 exports.addSavedItem = async (req, res) => {
     const prodId = req.params.prodId;
     const userId = req.user.id
-    console.log(userId);
     try {
         await Saved.findOneAndUpdate({
             userId: userId

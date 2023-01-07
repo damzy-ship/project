@@ -1,5 +1,18 @@
-const Product = require("../models/Product")
+const multer = require('multer');
+const sharp = require('sharp');
+const Product = require('../models/Product');
+const AppError = require('../utils/appError');
+const fs = require('fs')
+const firebase = require('../firebase');
+const {
+    getStorage,
+    ref,
+    uploadBytes,
+    getDownloadURL,
+    deleteObject
+} = require("firebase/storage");
 
+global.XMLHttpRequest = require("xhr2");
 
 // exports.aliasTopProducts = (req, res, next) => {
 //     //add the most -purchased product to the query.sort
@@ -9,11 +22,186 @@ const Product = require("../models/Product")
 //     next();
 // };
 
+const multerStorage = multer.memoryStorage();
+
+const multerFilter = (req, file, cb) => {
+    if (file.mimetype.startsWith('image')) {
+        cb(null, true);
+    } else {
+        cb(new AppError('Not an image! please upload only images.', 400), false);
+    }
+};
+
+const upload = multer({
+    storage: multerStorage,
+    fileFilter: multerFilter,
+});
+
+exports.uploadProductImages = upload.fields([{
+    name: 'images',
+    maxCount: 5
+}, ]);
+
+exports.resizeProductImages = async (req, res, next) => {
+
+    try {
+        if (!req.files?.images) return next();
+        req.body.imageURLS = [];
+        await Promise.all(req.files.images.map(async (image, i) => {
+            const productImageFilename = `product-${req.params.prodId}-${Date.now()}-${i + 1}.jpeg`;
+            await sharp(image.buffer)
+                .resize(400, 400)
+                .toFormat('jpeg')
+                .jpeg({
+                    quality: 90
+                })
+                .toFile(`public/img/products/${productImageFilename}`);
+            req.body.imageURLS.push(productImageFilename);
+        }));
+        next();
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({
+            status: "fail",
+            summmary: "could not resize products image",
+            message: err
+        })
+    }
+};
+
+exports.deployProductImages = async (req, res, next) => {
+    try {
+        if (!req.files?.images) return next();
+        const storage = getStorage(firebase, process.env.BUCKET_URL);
+        const metadata = {
+            contentType: 'image/jpeg',
+        };
+        req.body.images = [];
+
+
+        req.body.imageURLS.map((url, i) => {
+            const imagesRef = ref(storage, `images/${url}`);
+            fs.readFile(`public/img/products/${url}`, async (err, data) => {
+                await uploadBytes(imagesRef, data, metadata).then((snapshot) => {});
+                await getDownloadURL(imagesRef)
+                    .then((downloadUrl) => {
+                        req.body.images.push(downloadUrl);
+
+                        next();
+                    })
+                    .catch((error) => {
+                        // A full list of error codes is available at
+                        // https://firebase.google.com/docs/storage/web/handle-errors
+                        switch (error.code) {
+                            case 'storage/object-not-found':
+                                // File doesn't exist
+                                break;
+                            case 'storage/unauthorized':
+                                // User doesn't have permission to access the object
+                                break;
+                            case 'storage/canceled':
+                                // User canceled the upload
+                                break;
+
+                                // ...
+
+                            case 'storage/unknown':
+                                // Unknown error occurred, inspect the server response
+                                break;
+                        }
+                    });
+            })
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({
+            status: "fail",
+            summmary: "could not upload product images",
+            message: err
+        })
+    }
+
+
+
+}
+
+exports.updateProduct = async (req, res) => {
+    const prodId = req.params.prodId
+
+    if (req.body.images) {
+        fs.unlink(`public/img/products/${req.body.imageURLS[req.body.imageURLS.length - 1]}`, err => {
+            if (err) {
+                throw err
+            }
+            // console.log('File is deleted.')
+        })
+    }
+
+    const {
+        images,
+        imageURLS,
+        ...others
+    } = req.body
+
+    try {
+        await Product.findByIdAndUpdate(prodId, {
+            $addToSet: {
+                images: req.body.images,
+                imageURLS: req.body.imageURLS
+            },
+            ...others
+        });
+        res.status(200).json({
+            status: "success",
+            newImageUrl: req.body.images ? req.body.images : "",
+            summary: "Product successfully updated",
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({
+            status: "fail",
+            summmary: "could not update productimages ",
+            message: err
+        })
+    }
+};
+
+exports.deleteProductImage = async (req, res) => {
+    const prodId = req.params.prodId;
+    const storage = getStorage(firebase, process.env.BUCKET_URL);
+    try {
+        const desertRef = ref(storage, `images/${req.body.imageURL}`);
+        await deleteObject(desertRef).then(() => {
+        }).catch((error) => {
+            // Uh-oh, an error occurred!
+        })
+        await Product.findByIdAndUpdate(prodId, {
+            $pull: {
+                images: req.body.image,
+                imageURLS: req.body.imageURL
+            },
+        });
+        res.status(200).json({
+            status: "success",
+            summary: "Product image successfully deleted",
+        })
+    } catch (err) {
+        console.log(err)
+        res.status(500).json({
+            status: "fail",
+            summmary: "could not delete product images ",
+            message: err
+        })
+    }
+}
+
 exports.getAllProduct = async (req, res) => {
     const category = req.query.category;
     let products;
     try {
-        if (category) {
+        if (category === "all") {
+            products = await Product.find();
+        } else if (category) {
             products = await Product.find({
                 categories: {
                     $in: [category]
@@ -39,7 +227,7 @@ exports.getAllProduct = async (req, res) => {
 }
 
 exports.getTopProducts = async (req, res) => {
-    const ids = ["6385dd8999ea71aa76dd9a9a", "63862f1003e1d36596f6225a"];
+    const ids = ["639878d9433044d37f327069", "639b90f31fd9782560f210d1", "639c0d044def5239980db520", "639ba0697bab745329653a60", "639c105958973efc6ea6f840", "639c81be810ec5929d316d59", "639c8729193f441f017d7b88", "639c89ca4ec17c12d54db48c", "639c8bde03bc8e6379d7b561", "639c8e147aad4aed7d52e692", "639c8f416bf2996eef55b3f0"];
     try {
         topProducts = await Product.find({
             _id: {
@@ -66,7 +254,7 @@ exports.getProduct = async (req, res) => {
     try {
         const product = await Product.findById(prodId).populate({
             path: 'seller',
-            select: '-__v -products -createdAt -updatedAt -isAdmin -role',
+            select: '-__v -password -products -createdAt -updatedAt -isAdmin -role',
         });
         res.status(200).json({
             status: "success",
@@ -82,7 +270,6 @@ exports.getProduct = async (req, res) => {
         })
     }
 }
-
 
 exports.createProduct = async (req, res) => {
     const newProduct = new Product(req.body);
@@ -103,18 +290,27 @@ exports.createProduct = async (req, res) => {
     }
 }
 
-// exports.getAllSellerProducts = async (req, res) => {
-//     const sellerId = req.user.id;
-//     try {
-//         const products = await Product.find({})
-//     } catch (err) {
-//         res.status(500).json({
-//             status: "fail",
-//             summmary: "could not get your products",
-//             message: err
-//         })
-//     }
-// }
+exports.getMyProducts = async (req, res) => {
+    const sellerId = req.user.id;
+    try {
+        const products = await Product.find({
+            seller: sellerId
+        });
+        res.status(200).json({
+            status: "success",
+            length: products.length,
+            data: {
+                products
+            }
+        })
+    } catch (err) {
+        res.status(500).json({
+            status: "fail",
+            summmary: "could not get your products",
+            message: err
+        })
+    }
+}
 
 exports.postMyProduct = async (req, res) => {
     const sellerId = req.user.id;

@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 const cryptoJs = require("crypto-js");
+const Saved = require("./SavedItem")
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -35,10 +36,10 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.ObjectId,
         ref: 'Product',
     }],
-    // photo: {
-    //     type: String,
-    //     default: 'default.jpg'
-    // },
+    photo: {
+        type: String,
+        default: 'default.jpg'
+    },
     password: {
         type: String,
         required: [true, 'Please provide a password'],
@@ -70,5 +71,11 @@ userSchema.pre('save', function () {
     this.password = encryptedPassword;
     this.passwordConfirm = undefined;
 });
+
+userSchema.post('save', async function () {
+    await Saved({
+        userId: this._id
+    }).save();
+})
 
 module.exports = mongoose.model('User', userSchema)

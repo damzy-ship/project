@@ -1,7 +1,6 @@
 const User = require("../models/User");
 const cryptoJs = require("crypto-js");
 const JWT = require("jsonwebtoken");
-const Saved = require("../models/SavedItem");
 
 exports.register = async (req, res) => {
     const newUser = new User({
@@ -17,19 +16,29 @@ exports.register = async (req, res) => {
             passwordConfirm,
             ...others
         } = savedUser._doc;
-        const savedProductCart = await Saved({
-            userId: others._id
-        }).save();
 
+        const accessToken = JWT.sign({
+                id: others._id,
+                role: others.role,
+                isAdmin: others.isAdmin
+            },
+            process.env.JWT_SECRET, {
+                expiresIn: "30d"
+            }
+        );
         res.status(201).json({
             status: "sucsess",
             message: "user registration successful",
             data: {
-                newUser: others,
-                savedProductCart
+                user: {
+                    ...others,
+                    accessToken
+                },
+                // savedProductCart
             }
         })
     } catch (err) {
+        console.log(err)
         res.status(500).json({
             status: "fail",
             summary: "Regisitration Error",
@@ -65,7 +74,7 @@ exports.login = async (req, res) => {
                 isAdmin: user.isAdmin
             },
             process.env.JWT_SECRET, {
-                expiresIn: "7d"
+                expiresIn: "30d"
             }
         );
 
@@ -73,8 +82,6 @@ exports.login = async (req, res) => {
             password,
             ...others
         } = user._doc;
-
-
 
         res.status(200).json({
             status: "success",
@@ -87,6 +94,7 @@ exports.login = async (req, res) => {
             }
         });
     } catch (err) {
+        console.log(err)
         res.status(500).json({
             status: "fail",
             summary: "Login Unsuccessful",
@@ -130,7 +138,7 @@ exports.verifyTokenAndAuthorization = (req, res, next) => {
 
 exports.verifyTokenAndSeller = (req, res, next) => {
     verifyToken(req, res, () => {
-        if (req.user.isAdmin || req.user.id === req.params.id && req.user.role === "seller") {
+        if (req.user.role === "seller" || req.user.isAdmin) {
             next();
         } else {
             res.status(401).json({

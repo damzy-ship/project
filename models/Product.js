@@ -13,17 +13,22 @@ const productSchema = new mongoose.Schema({
     },
     description: {
         type: String,
-        required: true
+        required: true,
+        default: " "
     },
     categories: {
         type: [String],
-        required: true
+        required: true,
     },
-    price: {
-        type: Number,
-        required: true
+    minprice: String,
+    maxprice: String,
+    pricingType: {
+        type: String,
+        default: ""
     },
+    quantity: Number,
     images: [String],
+    imageURLS: [String],
     colors: [String],
     sizes: [String],
     soldout: {
@@ -47,11 +52,6 @@ productSchema.statics.updateSellerProduct = async function (sellerId, prodId) {
     }
 
 };
-
-
-productSchema.pre(/^findOneAnd/, function (next) {
-});
-
 
 productSchema.post('save', function () {
     this.constructor.updateSellerProduct(this.seller, this._id);
