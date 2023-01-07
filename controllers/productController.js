@@ -43,7 +43,6 @@ exports.uploadProductImages = upload.fields([{
 }, ]);
 
 exports.resizeProductImages = async (req, res, next) => {
-    console.log(req.files);
     try {
         if (!req.files?.images) return next();
         req.body.imageURLS = [];
