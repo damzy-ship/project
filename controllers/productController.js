@@ -55,7 +55,7 @@ exports.resizeProductImages = async (req, res, next) => {
                 .jpeg({
                     quality: 90
                 })
-                .toFile(`public/img/products/${productImageFilename}`);
+                .toFile(`${productImageFilename}`);
             req.body.imageURLS.push(productImageFilename);
         }));
         next();
@@ -81,7 +81,7 @@ exports.deployProductImages = async (req, res, next) => {
 
         req.body.imageURLS.map((url, i) => {
             const imagesRef = ref(storage, `images/${url}`);
-            fs.readFile(`public/img/products/${url}`, async (err, data) => {
+            fs.readFile(`${url}`, async (err, data) => {
                 await uploadBytes(imagesRef, data, metadata).then((snapshot) => {});
                 await getDownloadURL(imagesRef)
                     .then((downloadUrl) => {
