@@ -129,7 +129,7 @@ exports.updateProduct = async (req, res) => {
     const prodId = req.params.prodId
 
     if (req.body.images) {
-        fs.unlink(`public/img/products/${req.body.imageURLS[req.body.imageURLS.length - 1]}`, err => {
+        fs.unlink(`${req.body.imageURLS[req.body.imageURLS.length - 1]}`, err => {
             if (err) {
                 throw err
             }
