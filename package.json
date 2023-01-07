@@ -4,8 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "netlify-lambda serve src",
-    "build": "netlify-lambda build src"
+    "start": "node index.js"
   },
   "author": "damilola aguda",
   "license": "ISC",
