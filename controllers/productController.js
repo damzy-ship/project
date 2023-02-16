@@ -11,6 +11,9 @@ const {
     getDownloadURL,
     deleteObject
 } = require("firebase/storage");
+const {
+    Users
+} = require('../users');
 
 global.XMLHttpRequest = require("xhr2");
 
@@ -334,4 +337,38 @@ exports.postMyProduct = async (req, res) => {
     }
 
 
+}
+
+exports.searchProduct = async (req, res) => {
+    const products = await Product.find();
+    const {
+        q
+    } = req.query;
+
+    const keys = ["title", "description"];
+
+    const search = (data) => {
+        return data.filter((item) =>
+            keys.some((key) => item[key].toLowerCase().includes(q.toLowerCase())) ||
+            item.categories.includes(q.toLowerCase()) ||
+            item.colors.includes(q.toLowerCase())
+        );
+    };
+    try {
+
+        const filteredProds = q ? search(products).slice(0, 10) : products.slice(0, 10);
+        res.status(200).json({
+            status: "success",
+            length: products.length,
+            data: {
+                filteredProds
+            }
+        })
+    } catch (err) {
+        res.status(500).json({
+            status: "fail",
+            summmary: "could not get products",
+            message: err
+        })
+    }
 }

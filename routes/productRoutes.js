@@ -3,6 +3,8 @@ const productController = require("../controllers/productController");
 const authController = require("../controllers/authController");
 
 router.route("/top-products").get(productController.getTopProducts);
+router.route("/find-products").get(productController.searchProduct);
+
 
 router
     .route("/myproducts/:id")
