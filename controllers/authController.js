@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const cryptoJs = require("crypto-js");
 const JWT = require("jsonwebtoken");
+const Saved = require("../models/SavedItem");
 
 exports.register = async (req, res) => {
     const newUser = new User({
@@ -78,6 +79,8 @@ exports.login = async (req, res) => {
             }
         );
 
+        const savedProductsCart = await Saved.findOne({userId: user._id})
+
         const {
             password,
             ...others
@@ -89,6 +92,7 @@ exports.login = async (req, res) => {
             data: {
                 user: {
                     ...others,
+                    savedProductsCart: savedProductsCart.products,
                     accessToken
                 },
             }
