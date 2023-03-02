@@ -92,7 +92,7 @@ exports.login = async (req, res) => {
             data: {
                 user: {
                     ...others,
-                    savedProductsCart: savedProductsCart.products,
+                    savedProductsCart: savedProductsCart?.products,
                     accessToken
                 },
             }
