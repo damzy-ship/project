@@ -229,13 +229,8 @@ exports.getAllProduct = async (req, res) => {
 }
 
 exports.getTopProducts = async (req, res) => {
-    const ids = ["639878d9433044d37f327069", "639b90f31fd9782560f210d1", "639c0d044def5239980db520", "639ba0697bab745329653a60", "639c105958973efc6ea6f840", "639c81be810ec5929d316d59", "639c8729193f441f017d7b88", "639c89ca4ec17c12d54db48c", "639c8bde03bc8e6379d7b561", "639c8e147aad4aed7d52e692", "639c8f416bf2996eef55b3f0"];
     try {
-        topProducts = await Product.find({
-            _id: {
-                $in: ids
-            }
-        });
+        topProducts = await Product.find().sort({_id: -1}).limit(10);
         res.status(200).json({
             status: "success",
             data: {
