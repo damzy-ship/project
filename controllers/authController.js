@@ -5,10 +5,10 @@ const Saved = require("../models/SavedItem");
 
 exports.register = async (req, res) => {
     const newUser = new User({
-        name: req.body.name,
-        email: req.body.email,
-        password: req.body.password,
-        passwordConfirm: req.body.passwordConfirm
+        name: req.body.name.trim(),
+        email: req.body.email.trim(),
+        password: req.body.password.trim(),
+        passwordConfirm: req.body.passwordConfirm.trim()
     });
     try {
         const savedUser = await newUser.save();
@@ -51,7 +51,7 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
     try {
         const user = await User.findOne({
-            email: req.body.email
+            email: req.body.email.trim()
         });
         if (!user) {
             return res.status(401).json({
@@ -62,7 +62,7 @@ exports.login = async (req, res) => {
         const hasdhedPassword = cryptoJs.AES.decrypt(user.password, process.env.PASSWORD_SECRET);
         const actualPassword = hasdhedPassword.toString(cryptoJs.enc.Utf8);
 
-        if (actualPassword != req.body.password) {
+        if (actualPassword != req.body.password.trim()) {
             return res.status(401).json({
                 status: "fail",
                 message: "Wrong Credentials"
